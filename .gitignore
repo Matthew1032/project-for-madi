@@ -14,3 +14,9 @@ Thumbs.db
 # Environment
 .env
 .env.local
+
+# iCal feed data (persisted event storage — do not commit)
+backend/data/
+
+# Node modules
+node_modules/

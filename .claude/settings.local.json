@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd \"/mnt/c/Users/matth/OneDrive/Documents/Vibe Coding/Project for Madi\" && gh repo create project-for-madi --public --source=. --remote=origin --push)",
+      "Bash(which git:*)",
+      "Bash(echo $GITHUB_TOKEN && git config --global user.name && git config --global user.email)",
+      "Bash(git config:*)",
+      "Bash(gh --version)",
+      "Read(//usr/local/bin/**)",
+      "Read(//home/matth1032/.local/bin/**)",
+      "Read(//usr/**)",
+      "Read(//home/**)",
+      "Bash(cd \"/mnt/c/Users/matth/OneDrive/Documents/Vibe Coding/Project for Madi\" && gh.exe auth status 2>&1)",
+      "Bash(cd \"/mnt/c/Users/matth/OneDrive/Documents/Vibe Coding/Project for Madi\" && gh.exe repo create project-for-madi --public --source=. --remote=origin --push 2>&1)",
+      "Bash(node --version && npm --version 2>/dev/null)",
+      "Bash(npm info:*)",
+      "Bash(npm pack:*)"
+    ]
+  }
+}

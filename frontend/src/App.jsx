@@ -1,42 +1,30 @@
 import { useState, useEffect, useCallback } from 'react';
-import AuthBanner from './components/AuthBanner.jsx';
 import InputSection from './components/InputSection.jsx';
 import EventPreview from './components/EventPreview.jsx';
+import FeedInfo from './components/FeedInfo.jsx';
 import SuccessMessage from './components/SuccessMessage.jsx';
 
 export default function App() {
-  const [auth, setAuth] = useState({ isAuthenticated: false, userName: '', email: '' });
+  const [feedInfo, setFeedInfo] = useState(null);
   const [extractedEvent, setExtractedEvent] = useState(null);
   const [isExtracting, setIsExtracting] = useState(false);
-  const [isSending, setIsSending] = useState(false);
+  const [isAdding, setIsAdding] = useState(false);
   const [extractError, setExtractError] = useState('');
-  const [sendError, setSendError] = useState('');
+  const [addError, setAddError] = useState('');
   const [success, setSuccess] = useState(null);
 
-  const checkAuth = useCallback(async () => {
+  const refreshFeedInfo = useCallback(async () => {
     try {
-      const res = await fetch('/auth/status', { credentials: 'include' });
-      const data = await res.json();
-      setAuth(data);
+      const res = await fetch('/api/feed/info');
+      if (res.ok) setFeedInfo(await res.json());
     } catch {
-      // Backend not reachable — leave auth as unauthenticated
+      // Backend not reachable yet — will retry on next action
     }
   }, []);
 
   useEffect(() => {
-    checkAuth();
-
-    // Handle OAuth redirect back to the app
-    const params = new URLSearchParams(window.location.search);
-    const authResult = params.get('auth');
-    if (authResult === 'success') {
-      window.history.replaceState({}, '', '/');
-      checkAuth();
-    } else if (authResult === 'error') {
-      window.history.replaceState({}, '', '/');
-      setSendError('Microsoft login failed. Please try again.');
-    }
-  }, [checkAuth]);
+    refreshFeedInfo();
+  }, [refreshFeedInfo]);
 
   const handleExtract = async ({ file, prompt }) => {
     setIsExtracting(true);
@@ -54,13 +42,11 @@ export default function App() {
       const res = await fetch('/api/events/extract', {
         method: 'POST',
         body,
-        credentials: 'include',
       });
       const data = await res.json();
-
       if (!res.ok) throw new Error(data.error || 'Extraction failed.');
 
-      // Pre-fill the user's local timezone
+      // Pre-fill the browser's local timezone
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       setExtractedEvent({ ...data.event, timezone: data.event.timezone || tz });
     } catch (err) {
@@ -70,50 +56,36 @@ export default function App() {
     }
   };
 
-  const handleSend = async (event) => {
-    if (!auth.isAuthenticated) {
-      // Redirect to Microsoft login; the OAuth callback will return us here
-      window.location.href = '/auth/login';
-      return;
-    }
-
-    setIsSending(true);
-    setSendError('');
+  const handleAdd = async (event) => {
+    setIsAdding(true);
+    setAddError('');
 
     try {
-      const res = await fetch('/api/events/send', {
+      const res = await fetch('/api/events/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(event),
-        credentials: 'include',
       });
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to add event.');
 
-      if (!res.ok) {
-        if (data.requiresAuth) {
-          window.location.href = '/auth/login';
-          return;
-        }
-        throw new Error(data.error || 'Failed to send invite.');
-      }
-
-      setSuccess({ ...data, event });
+      setSuccess(data);
+      setFeedInfo({
+        feedUrl: data.feedUrl,
+        webcalUrl: data.webcalUrl,
+        eventCount: data.eventCount,
+      });
     } catch (err) {
-      setSendError(err.message);
+      setAddError(err.message);
     } finally {
-      setIsSending(false);
+      setIsAdding(false);
     }
-  };
-
-  const handleLogout = async () => {
-    await fetch('/auth/logout', { credentials: 'include' });
-    setAuth({ isAuthenticated: false, userName: '', email: '' });
   };
 
   const handleReset = () => {
     setExtractedEvent(null);
     setSuccess(null);
-    setSendError('');
+    setAddError('');
     setExtractError('');
   };
 
@@ -124,7 +96,7 @@ export default function App() {
           <span className="header-icon">📅</span>
           <span className="header-title">Calendar Invite</span>
         </div>
-        <AuthBanner auth={auth} onLogout={handleLogout} />
+        <span className="header-sub">iCal feed for Microsoft Outlook</span>
       </header>
 
       <main className="app-main">
@@ -142,12 +114,13 @@ export default function App() {
               <EventPreview
                 event={extractedEvent}
                 onChange={setExtractedEvent}
-                onSend={handleSend}
-                isSending={isSending}
-                isAuthenticated={auth.isAuthenticated}
-                sendError={sendError}
+                onAdd={handleAdd}
+                isAdding={isAdding}
+                addError={addError}
               />
             )}
+
+            <FeedInfo info={feedInfo} onRefresh={refreshFeedInfo} />
           </div>
         )}
       </main>
